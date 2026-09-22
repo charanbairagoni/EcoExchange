@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SELLER
+  BUYER
+  ADMIN
+}
+
+enum OrderType {
+  SELL
+  BUY
+}
+
+enum OrderStatus {
+  LISTED
+  ORDER_PLACED
+  ADMIN_REVIEW
+  FORWARDED_TO_LOGISTICS
+  PICKUP_SCHEDULED
+  IN_TRANSIT
+  DELIVERED
+  COMPLETED
+  CANCELLED
+}
+
+enum LogisticsStatus {
+  PENDING
+  ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  COMPLETED
+}
+
+model User {
+  id              String    @id @default(cuid())
+  industryName    String
+  ownerName       String
+  email           String    @unique
+  location        String
+  contactNumber   String
+  passwordHash    String
+  roles           Role[]    @default([BUYER])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  wasteListings   WasteListing[] @relation("SellerListings")
+  buyOrders       Order[]        @relation("BuyerOrders")
+  sellOrders      Order[]        @relation("SellerOrders")
+}
+
+model WasteListing {
+  id              String    @id @default(cuid())
+  wasteType       String
+  quantity        Float
+  unit            String
+  price           Float
+  location        String
+  description     String
+  imageUrl        String?
+  sellerId        String
+  seller          User      @relation("SellerListings", fields: [sellerId], references: [id])
+  availability    String    @default("Available")
+  status          String    @default("LISTED")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  orders          Order[]
+  @@index([sellerId])
+  @@index([wasteType, location])
+}
+
+model Order {
+  id                 String           @id @default(cuid())
+  orderCode          String           @unique
+  orderType          OrderType
+  buyerId            String
+  sellerId           String
+  wasteListingId     String?
+  wasteType          String
+  quantity           Float
+  location           String
+  basePrice          Float
+  buyerCommission    Float
+  sellerCommission   Float
+  transportCharge    Float
+  finalAmount        Float
+  status             OrderStatus      @default(ORDER_PLACED)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  buyer              User             @relation("BuyerOrders", fields: [buyerId], references: [id])
+  seller             User             @relation("SellerOrders", fields: [sellerId], references: [id])
+  wasteListing       WasteListing?    @relation(fields: [wasteListingId], references: [id])
+  logisticsRequest   LogisticsRequest?
+  transaction        Transaction?
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([status])
+}
+
+model LogisticsCompany {
+  id              String    @id @default(cuid())
+  companyName     String
+  contactNumber   String
+  serviceArea     String
+  status          String    @default("Active")
+  createdAt       DateTime  @default(now())
+  logisticsRequests LogisticsRequest[]
+}
+
+model LogisticsRequest {
+  id               String           @id @default(cuid())
+  requestCode      String           @unique
+  orderId          String           @unique
+  order            Order            @relation(fields: [orderId], references: [id])
+  logisticsCompanyId String?
+  logisticsCompany  LogisticsCompany? @relation(fields: [logisticsCompanyId], references: [id])
+  pickupLocation   String
+  deliveryLocation String
+  wasteType        String
+  quantity         Float
+  transportCharge  Float
+  status           LogisticsStatus  @default(PENDING)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  @@index([logisticsCompanyId])
+}
+
+model Transaction {
+  id          String    @id @default(cuid())
+  orderId     String    @unique
+  order       Order     @relation(fields: [orderId], references: [id])
+  type        String
+  amount      Float
+  status      String    @default("PENDING")
+  createdAt   DateTime  @default(now())
+}

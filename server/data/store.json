@@ -1,0 +1,195 @@
+{
+  "users": [
+    {
+      "id": "user-abc",
+      "industryName": "ABC Manufacturing",
+      "ownerName": "Rohit Sharma",
+      "email": "seller@abc.com",
+      "location": "Pune",
+      "contactNumber": "+91 98765 43210",
+      "passwordHash": "$2b$10$6CahgYwaYLdRW5V/kmjM2.EL0AMXVku3VBa9CoNJDh1ENCRK2GPYG",
+      "roles": [
+        "SELLER",
+        "BUYER"
+      ],
+      "createdAt": "2026-09-21T00:00:00.000Z",
+      "updatedAt": "2026-09-21T00:00:00.000Z"
+    },
+    {
+      "id": "user-greensteel",
+      "industryName": "GreenSteel Industries",
+      "ownerName": "Aisha Naidu",
+      "email": "buyer@greensteel.com",
+      "location": "Mumbai",
+      "contactNumber": "+91 99887 66554",
+      "passwordHash": "$2b$10$7wZof.7Eyqm0pZT8fTQfKejmGNKtAQBEafjsVC8Pbspy48SkbtOFi",
+      "roles": [
+        "BUYER",
+        "SELLER"
+      ],
+      "createdAt": "2026-09-21T00:00:00.000Z",
+      "updatedAt": "2026-09-21T00:00:00.000Z"
+    },
+    {
+      "id": "user-ecoplast",
+      "industryName": "EcoPlast Solutions",
+      "ownerName": "Naveen Iyer",
+      "email": "sales@ecoplast.com",
+      "location": "Bengaluru",
+      "contactNumber": "+91 98111 22233",
+      "passwordHash": "$2b$10$VYGu9JKvCX4f1PLw6UUwR.tisLE1gEzeSlcCGmH5d8wVHinYSa5/6",
+      "roles": [
+        "SELLER"
+      ],
+      "createdAt": "2026-09-21T00:00:00.000Z",
+      "updatedAt": "2026-09-21T00:00:00.000Z"
+    }
+  ],
+  "wasteListings": [
+    {
+      "id": "listing-1",
+      "wasteType": "Steel Scrap",
+      "quantity": 1200,
+      "unit": "kg",
+      "price": 95000,
+      "location": "Pune",
+      "description": "High-grade steel scrap suitable for re-melting and industrial reuse.",
+      "imageUrl": "https://images.unsplash.com/photo-1581092160607-ee2279d0d3a8?auto=format&fit=crop&w=900&q=80",
+      "sellerId": "user-abc",
+      "availability": "Available",
+      "status": "ORDERED",
+      "createdAt": "2026-09-21T00:00:00.000Z",
+      "updatedAt": "2026-09-21T00:00:00.000Z"
+    },
+    {
+      "id": "listing-2",
+      "wasteType": "Plastic Scrap",
+      "quantity": 900,
+      "unit": "kg",
+      "price": 62000,
+      "location": "Bengaluru",
+      "description": "Clean HDPE and LDPE polymer waste sorted by grade.",
+      "imageUrl": "https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?auto=format&fit=crop&w=900&q=80",
+      "sellerId": "user-ecoplast",
+      "availability": "Available",
+      "status": "ORDERED",
+      "createdAt": "2026-09-21T00:00:00.000Z",
+      "updatedAt": "2026-09-21T00:00:00.000Z"
+    },
+    {
+      "id": "listing-3",
+      "wasteType": "Fly Ash",
+      "quantity": 5,
+      "unit": "tonnes",
+      "price": 150000,
+      "location": "Nagpur",
+      "description": "Ash by-product with consistent density for construction and filler use.",
+      "imageUrl": "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=900&q=80",
+      "sellerId": "user-abc",
+      "availability": "Available",
+      "status": "LISTED",
+      "createdAt": "2026-09-21T00:00:00.000Z",
+      "updatedAt": "2026-09-21T00:00:00.000Z"
+    }
+  ],
+  "orders": [
+    {
+      "id": "2f47d248-511c-42d3-816e-49ab614c68fb",
+      "orderCode": "ECO-BUY-000002",
+      "orderType": "BUY",
+      "buyerId": "user-greensteel",
+      "sellerId": "user-ecoplast",
+      "wasteListingId": "listing-2",
+      "wasteType": "Plastic Scrap",
+      "quantity": 900,
+      "location": "Bengaluru",
+      "basePrice": 62000,
+      "buyerCommission": 3100,
+      "sellerCommission": 1240,
+      "transportCharge": 5000,
+      "finalAmount": 70100,
+      "status": "FORWARDED_TO_LOGISTICS",
+      "createdAt": "2026-09-21T07:50:12.958Z",
+      "updatedAt": "2026-09-21T07:50:13.386Z"
+    },
+    {
+      "id": "b24f304d-7ab3-4fd4-b3e7-b0675d3a6e96",
+      "orderCode": "ECO-BUY-000001",
+      "orderType": "BUY",
+      "buyerId": "user-greensteel",
+      "sellerId": "user-abc",
+      "wasteListingId": "listing-1",
+      "wasteType": "Steel Scrap",
+      "quantity": 1200,
+      "location": "Pune",
+      "basePrice": 95000,
+      "buyerCommission": 4750,
+      "sellerCommission": 1900,
+      "transportCharge": 5000,
+      "finalAmount": 104750,
+      "status": "ORDER_PLACED",
+      "createdAt": "2026-09-21T07:49:08.863Z",
+      "updatedAt": "2026-09-21T07:49:08.863Z"
+    }
+  ],
+  "logisticsCompanies": [
+    {
+      "id": "logistics-1",
+      "companyName": "ABC Logistics",
+      "contactNumber": "+91 90123 45678",
+      "serviceArea": "Pune, Mumbai",
+      "status": "Active",
+      "createdAt": "2026-09-21T00:00:00.000Z"
+    },
+    {
+      "id": "logistics-2",
+      "companyName": "GreenMove Transport",
+      "contactNumber": "+91 91234 56789",
+      "serviceArea": "Bengaluru, Chennai",
+      "status": "Active",
+      "createdAt": "2026-09-21T00:00:00.000Z"
+    },
+    {
+      "id": "logistics-3",
+      "companyName": "EcoCargo",
+      "contactNumber": "+91 92345 67890",
+      "serviceArea": "Hyderabad, Nagpur",
+      "status": "Active",
+      "createdAt": "2026-09-21T00:00:00.000Z"
+    }
+  ],
+  "logisticsRequests": [
+    {
+      "id": "30792dd3-a5bc-49eb-bbff-9791287cfe2a",
+      "requestCode": "ECO-LOG-000001",
+      "orderId": "2f47d248-511c-42d3-816e-49ab614c68fb",
+      "logisticsCompanyId": "logistics-2",
+      "pickupLocation": "Bengaluru",
+      "deliveryLocation": "Warehouse Center",
+      "wasteType": "Plastic Scrap",
+      "quantity": 900,
+      "transportCharge": 5000,
+      "status": "PENDING",
+      "createdAt": "2026-09-21T07:50:13.386Z",
+      "updatedAt": "2026-09-21T07:50:13.386Z"
+    }
+  ],
+  "transactions": [
+    {
+      "id": "ef57d40b-7c29-41b1-b2e6-da6a22cc36ac",
+      "orderId": "b24f304d-7ab3-4fd4-b3e7-b0675d3a6e96",
+      "type": "BUY",
+      "amount": 104750,
+      "status": "PENDING",
+      "createdAt": "2026-09-21T07:49:08.863Z"
+    },
+    {
+      "id": "aa722e0f-7332-4365-8aae-0fb5afd4684a",
+      "orderId": "2f47d248-511c-42d3-816e-49ab614c68fb",
+      "type": "BUY",
+      "amount": 70100,
+      "status": "PENDING",
+      "createdAt": "2026-09-21T07:50:12.958Z"
+    }
+  ]
+}
