@@ -116,6 +116,32 @@ interface Transaction {
   createdAt: string;
 }
 
+type ConversationStatus = 'OPEN' | 'CLOSED';
+
+interface Conversation {
+  id: string;
+  orderId: string;
+  sellerId: string;
+  buyerId: string;
+  adminId: string;
+  status: ConversationStatus;
+  createdAt: string;
+  updatedAt: string;
+  lastMessageAt?: string;
+}
+
+interface Message {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderRole: Role;
+  receiverId: string;
+  receiverRole: Role;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
 interface Store {
   users: User[];
   wasteListings: WasteListing[];
@@ -123,6 +149,8 @@ interface Store {
   logisticsCompanies: LogisticsCompany[];
   logisticsRequests: LogisticsRequest[];
   transactions: Transaction[];
+  conversations: Conversation[];
+  messages: Message[];
 }
 
 const DATA_PATH = path.resolve(__dirname, '../data/store.json');
@@ -248,6 +276,8 @@ const defaultStore: Store = {
   logisticsCompanies: demoLogisticsCompanies,
   logisticsRequests: [],
   transactions: [],
+  conversations: [],
+  messages: [],
 };
 
 function ensureStoreFile() {
@@ -369,6 +399,34 @@ function createListingCode(store: Store) {
 
 function createRequestCode(store: Store) {
   return `ECO-LOG-${String(store.logisticsRequests.length + 1).padStart(6, '0')}`;
+}
+
+function normalizeChatStore(store: Store) {
+  let changed = false;
+  if (!Array.isArray(store.conversations)) { store.conversations = []; changed = true; }
+  if (!Array.isArray(store.messages)) { store.messages = []; changed = true; }
+  if (changed) saveStore(store);
+  return store;
+}
+
+function getConversationParticipant(conversation: Conversation, user: User) {
+  return user.roles.includes('ADMIN') || conversation.sellerId === user.id || conversation.buyerId === user.id;
+}
+
+function conversationView(store: Store, conversation: Conversation) {
+  const order = store.orders.find((entry) => entry.id === conversation.orderId);
+  const seller = store.users.find((entry) => entry.id === conversation.sellerId);
+  const buyer = store.users.find((entry) => entry.id === conversation.buyerId);
+  const messages = store.messages.filter((message) => message.conversationId === conversation.id);
+  const lastMessage = messages[messages.length - 1];
+  return {
+    ...conversation,
+    order: order || null,
+    seller: seller ? sanitizeUser(seller) : null,
+    buyer: buyer ? sanitizeUser(buyer) : null,
+    lastMessage: lastMessage ? { ...lastMessage, content: lastMessage.content.slice(0, 140) } : null,
+    unreadCount: messages.filter((message) => !message.isRead).length,
+  };
 }
 
 app.get('/api/health', (_req, res) => {
@@ -594,6 +652,117 @@ app.get('/api/orders', requireAuth, (req: Request, res: Response) => {
   const store = readStore();
   const orders = store.orders.filter((order) => order.buyerId === user.id || order.sellerId === user.id);
   return res.json({ orders });
+});
+
+app.get('/api/conversations', requireAuth, (req: Request, res: Response) => {
+  const user = (req as Request & { user?: User }).user;
+  if (!user) return res.status(401).json({ message: 'Authentication required.' });
+  const store = normalizeChatStore(readStore());
+  const conversations = store.conversations
+    .filter((conversation) => getConversationParticipant(conversation, user))
+    .map((conversation) => conversationView(store, conversation))
+    .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime());
+  return res.json({ conversations });
+});
+
+app.post('/api/conversations', requireAuth, requireRole(['SELLER', 'BUYER']), (req: Request, res: Response) => {
+  const user = (req as Request & { user?: User }).user;
+  if (!user) return res.status(401).json({ message: 'Authentication required.' });
+  const { orderId } = req.body || {};
+  if (!orderId) return res.status(400).json({ message: 'An order is required.' });
+  const store = normalizeChatStore(readStore());
+  const order = store.orders.find((entry) => entry.id === orderId);
+  if (!order) return res.status(404).json({ message: 'Order not found.' });
+  if (order.buyerId !== user.id && order.sellerId !== user.id) return res.status(403).json({ message: 'You cannot access this order conversation.' });
+  let conversation = store.conversations.find((entry) => entry.orderId === order.id);
+  if (!conversation) {
+    conversation = { id: randomUUID(), orderId: order.id, sellerId: order.sellerId, buyerId: order.buyerId, adminId: 'admin-demo', status: 'OPEN', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    store.conversations.unshift(conversation);
+    saveStore(store);
+  }
+  return res.status(201).json({ conversation: conversationView(store, conversation) });
+});
+
+app.get('/api/conversations/:id/messages', requireAuth, (req: Request, res: Response) => {
+  const user = (req as Request & { user?: User }).user;
+  if (!user) return res.status(401).json({ message: 'Authentication required.' });
+  const store = normalizeChatStore(readStore());
+  const conversation = store.conversations.find((entry) => entry.id === req.params.id);
+  if (!conversation) return res.status(404).json({ message: 'Conversation not found.' });
+  if (!getConversationParticipant(conversation, user)) return res.status(403).json({ message: 'Access denied.' });
+  return res.json({ conversation: conversationView(store, conversation), messages: store.messages.filter((message) => message.conversationId === conversation.id) });
+});
+
+app.post('/api/conversations/:id/messages', requireAuth, (req: Request, res: Response) => {
+  const user = (req as Request & { user?: User }).user;
+  if (!user) return res.status(401).json({ message: 'Authentication required.' });
+  const text = String(req.body?.content || '').trim();
+  if (!text) return res.status(400).json({ message: 'Message cannot be empty.' });
+  if (text.length > 4000) return res.status(400).json({ message: 'Message is too long.' });
+  const store = normalizeChatStore(readStore());
+  const conversation = store.conversations.find((entry) => entry.id === req.params.id);
+  if (!conversation) return res.status(404).json({ message: 'Conversation not found.' });
+  if (!getConversationParticipant(conversation, user)) return res.status(403).json({ message: 'Access denied.' });
+  if (conversation.status === 'CLOSED') return res.status(409).json({ message: 'This conversation is closed.' });
+  const senderRole: Role | null = user.roles.includes('ADMIN') ? 'ADMIN' : user.roles.includes('SELLER') && conversation.sellerId === user.id ? 'SELLER' : conversation.buyerId === user.id ? 'BUYER' : null;
+  if (!senderRole) return res.status(403).json({ message: 'You cannot send messages in this conversation.' });
+  const requestedReceiverRole = req.body?.receiverRole;
+  if (senderRole === 'ADMIN' && requestedReceiverRole !== 'SELLER' && requestedReceiverRole !== 'BUYER') return res.status(400).json({ message: 'Admin messages must target a seller or buyer.' });
+  const receiverRole: Role = senderRole === 'ADMIN' ? requestedReceiverRole : 'ADMIN';
+  const receiverId = receiverRole === 'SELLER' ? conversation.sellerId : receiverRole === 'BUYER' ? conversation.buyerId : 'admin-demo';
+  const message: Message = { id: randomUUID(), conversationId: conversation.id, senderId: user.id, senderRole, receiverId, receiverRole, content: text, isRead: false, createdAt: new Date().toISOString() };
+  store.messages.push(message);
+  conversation.updatedAt = message.createdAt;
+  conversation.lastMessageAt = message.createdAt;
+  saveStore(store);
+  return res.status(201).json({ message });
+});
+
+app.put('/api/conversations/:id/read', requireAuth, (req: Request, res: Response) => {
+  const user = (req as Request & { user?: User }).user;
+  if (!user) return res.status(401).json({ message: 'Authentication required.' });
+  const store = normalizeChatStore(readStore());
+  const conversation = store.conversations.find((entry) => entry.id === req.params.id);
+  if (!conversation) return res.status(404).json({ message: 'Conversation not found.' });
+  if (!getConversationParticipant(conversation, user)) return res.status(403).json({ message: 'Access denied.' });
+  store.messages.forEach((message) => { if (message.conversationId === conversation.id && message.receiverId === user.id) message.isRead = true; });
+  saveStore(store);
+  return res.json({ message: 'Conversation marked as read.' });
+});
+
+app.put('/api/messages/:id/read', requireAuth, (req: Request, res: Response) => {
+  const user = (req as Request & { user?: User }).user;
+  if (!user) return res.status(401).json({ message: 'Authentication required.' });
+  const store = normalizeChatStore(readStore());
+  const message = store.messages.find((entry) => entry.id === req.params.id);
+  if (!message) return res.status(404).json({ message: 'Message not found.' });
+  const conversation = store.conversations.find((entry) => entry.id === message.conversationId);
+  if (!conversation || !getConversationParticipant(conversation, user)) return res.status(403).json({ message: 'Access denied.' });
+  if (message.receiverId !== user.id && !user.roles.includes('ADMIN')) return res.status(403).json({ message: 'Only the recipient can mark this message as read.' });
+  message.isRead = true;
+  saveStore(store);
+  return res.json({ message: 'Message marked as read.' });
+});
+
+app.delete('/api/conversations/:conversationId/messages/:messageId', requireAuth, requireRole(['ADMIN']), (req: Request, res: Response) => {
+  const store = normalizeChatStore(readStore());
+  const message = store.messages.find((entry) => entry.id === req.params.messageId && entry.conversationId === req.params.conversationId);
+  if (!message) return res.status(404).json({ message: 'Message not found.' });
+  store.messages = store.messages.filter((entry) => entry.id !== message.id);
+  saveStore(store);
+  return res.json({ message: 'Message deleted.' });
+});
+
+app.put('/api/conversations/:id/status', requireAuth, requireRole(['ADMIN']), (req: Request, res: Response) => {
+  const { status } = req.body || {};
+  if (status !== 'OPEN' && status !== 'CLOSED') return res.status(400).json({ message: 'Invalid conversation status.' });
+  const store = normalizeChatStore(readStore());
+  const conversation = store.conversations.find((entry) => entry.id === req.params.id);
+  if (!conversation) return res.status(404).json({ message: 'Conversation not found.' });
+  conversation.status = status;
+  conversation.updatedAt = new Date().toISOString();
+  saveStore(store);
+  return res.json({ conversation: conversationView(store, conversation) });
 });
 
 app.put('/api/orders/:id/status', requireAuth, (req: Request, res: Response) => {

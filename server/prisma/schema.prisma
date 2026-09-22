@@ -39,6 +39,11 @@ enum LogisticsStatus {
   COMPLETED
 }
 
+enum ConversationStatus {
+  OPEN
+  CLOSED
+}
+
 model User {
   id              String    @id @default(cuid())
   industryName    String
@@ -53,6 +58,11 @@ model User {
   wasteListings   WasteListing[] @relation("SellerListings")
   buyOrders       Order[]        @relation("BuyerOrders")
   sellOrders      Order[]        @relation("SellerOrders")
+  sellerConversations Conversation[] @relation("ConversationSeller")
+  buyerConversations  Conversation[] @relation("ConversationBuyer")
+  adminConversations  Conversation[] @relation("ConversationAdmin")
+  sentMessages     Message[]      @relation("MessageSender")
+  receivedMessages Message[]      @relation("MessageReceiver")
 }
 
 model WasteListing {
@@ -98,9 +108,46 @@ model Order {
   wasteListing       WasteListing?    @relation(fields: [wasteListingId], references: [id])
   logisticsRequest   LogisticsRequest?
   transaction        Transaction?
+  conversations      Conversation[]
   @@index([buyerId])
   @@index([sellerId])
   @@index([status])
+}
+
+model Conversation {
+  id          String             @id @default(cuid())
+  orderId     String             @unique
+  sellerId    String
+  buyerId     String
+  adminId     String
+  status      ConversationStatus @default(OPEN)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  order       Order              @relation(fields: [orderId], references: [id])
+  seller      User               @relation("ConversationSeller", fields: [sellerId], references: [id])
+  buyer       User               @relation("ConversationBuyer", fields: [buyerId], references: [id])
+  admin       User               @relation("ConversationAdmin", fields: [adminId], references: [id])
+  messages    Message[]
+  @@index([sellerId])
+  @@index([buyerId])
+  @@index([status])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  senderId       String
+  senderRole     Role
+  receiverId     String
+  receiverRole   Role
+  content        String
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id])
+  receiver       User         @relation("MessageReceiver", fields: [receiverId], references: [id])
+  @@index([conversationId, createdAt])
+  @@index([receiverId, isRead])
 }
 
 model LogisticsCompany {
