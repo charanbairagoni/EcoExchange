@@ -2,7 +2,6 @@
   var DEMO_ADMIN = { identifier: '/*$/eco555', password: 'eco555' };
   var USER_KEY = 'ecoexchange_users';
   var SESSION_KEY = 'currentUser';
-  var LEGACY_SESSION_KEY = 'ecoexchange_session';
 
   function read(key, fallback) {
     try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); } catch (error) { return fallback; }
@@ -12,22 +11,25 @@
   function normalize(user) {
     if (!user || (user.role !== 'USER' && user.role !== 'ADMIN' && user.role !== 'INDUSTRY')) return null;
     if (user.role === 'INDUSTRY') user = Object.assign({}, user, { role: 'USER' });
+    if (user.role !== 'ADMIN') user.status = user.status || 'ACTIVE';
     return user;
   }
   function session() {
     var storedCurrent = localStorage.getItem(SESSION_KEY);
-    if (storedCurrent !== null) return normalize(read(SESSION_KEY, null));
-    var legacy = normalize(read(LEGACY_SESSION_KEY, null));
-    if (legacy) setSession(legacy);
-    return legacy;
+    if (storedCurrent === null) {
+      localStorage.removeItem('ecoexchange_session');
+      return null;
+    }
+    var current = normalize(read(SESSION_KEY, null));
+    if (!current) localStorage.removeItem(SESSION_KEY);
+    return current;
   }
   function setSession(user) {
     var normalized = normalize(user);
     if (!normalized) return;
     write(SESSION_KEY, normalized);
-    write(LEGACY_SESSION_KEY, normalized);
   }
-  function clearSession() { localStorage.removeItem(SESSION_KEY); localStorage.removeItem(LEGACY_SESSION_KEY); }
+  function clearSession() { localStorage.removeItem(SESSION_KEY); localStorage.removeItem('ecoexchange_session'); }
   function register(data) {
     var all = users();
     if (all.some(function (item) { return item.email.toLowerCase() === data.email.toLowerCase(); })) throw new Error('An account with this email already exists.');
